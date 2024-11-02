@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 
 import 'package:band_names/models/band.dart';
 import 'package:band_names/services/services.dart';
+import 'package:band_names/widgets/widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,11 +22,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     final socketService = Provider.of<SocketService>(context, listen: false);
-    socketService.socket.on('active-bands', (payload) {
-      bands = (payload as List).map((band) => Band.fromMap(band)).toList();
-      setState(() {});
-    });
+    socketService.socket.on('active-bands', _handleActiveBands);
     super.initState();
+  }
+
+  void _handleActiveBands(dynamic payload) {
+    bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+    setState(() {});
   }
 
   @override
@@ -52,9 +56,16 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
-      body: ListView.builder(
-          itemCount: bands.length,
-          itemBuilder: (context, i) => _bandTile(bands[i])),
+      body: Column(
+        children: [
+          _showGraph(),
+          Expanded(
+            child: ListView.builder(
+                itemCount: bands.length,
+                itemBuilder: (context, i) => _bandTile(bands[i])),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
           elevation: 1, onPressed: addNewBand, child: const Icon(Icons.add)),
     );
@@ -65,11 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Dismissible(
       key: Key(band.id),
       direction: DismissDirection.startToEnd,
-      onDismissed: (direction) {
-        print('direction: $direction');
-        print('id: ${band.id}');
-        // TODO: llamar el borrado en el server
-      },
+      onDismissed: (_) => socketService.emit('delete-band', {'id': band.id}),
       background: Container(
           padding: const EdgeInsets.only(left: 8.0),
           color: Colors.red,
@@ -84,10 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         title: Text(band.name),
         trailing: Text('${band.votes}', style: const TextStyle(fontSize: 20)),
-        onTap: () {
-          print(band.id);
-          socketService.socket.emit('vote-band', {'id': band.id});
-        },
+        onTap: () => socketService.socket.emit('vote-band', {'id': band.id}),
       ),
     );
   }
@@ -98,51 +102,45 @@ class _HomeScreenState extends State<HomeScreen> {
     if (Platform.isAndroid) {
       // Android
       return showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('New band name:'),
-            content: TextField(
-              controller: textController,
-            ),
-            actions: <Widget>[
-              MaterialButton(
-                  elevation: 5,
-                  textColor: Colors.blue,
-                  onPressed: () {
-                    addBandToList(textController.text);
-                  },
-                  child: const Text('Add'))
-            ],
-          );
-        },
-      );
+          context: context,
+          builder: (_) => AlertDialog(
+                title: const Text('New band name:'),
+                content: TextField(
+                  controller: textController,
+                ),
+                actions: <Widget>[
+                  MaterialButton(
+                      elevation: 5,
+                      textColor: Colors.blue,
+                      onPressed: () {
+                        addBandToList(textController.text);
+                      },
+                      child: const Text('Add'))
+                ],
+              ));
     }
 
     showCupertinoDialog(
         context: context,
-        builder: (_) {
-          return CupertinoAlertDialog(
-            title: const Text('New band name:'),
-            content: CupertinoTextField(
-              controller: textController,
-            ),
-            actions: <Widget>[
-              CupertinoDialogAction(
-                  isDefaultAction: true,
-                  child: const Text('Add'),
-                  onPressed: () => addBandToList(textController.text)),
-              CupertinoDialogAction(
-                  isDestructiveAction: true,
-                  child: const Text('Dismiss'),
-                  onPressed: () => Navigator.pop(context))
-            ],
-          );
-        });
+        builder: (_) => CupertinoAlertDialog(
+              title: const Text('New band name:'),
+              content: CupertinoTextField(
+                controller: textController,
+              ),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                    isDefaultAction: true,
+                    child: const Text('Add'),
+                    onPressed: () => addBandToList(textController.text)),
+                CupertinoDialogAction(
+                    isDestructiveAction: true,
+                    child: const Text('Dismiss'),
+                    onPressed: () => Navigator.pop(context))
+              ],
+            ));
   }
 
   void addBandToList(String name) {
-
     final socketService = Provider.of<SocketService>(context, listen: false);
 
     if (name.length > 1) {
@@ -152,5 +150,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     Navigator.pop(context);
+  }
+
+  Widget _showGraph() {
+    // final myList = <GraphValueData>[
+    //   GraphValueData(value: 10, color: Colors.yellow, title: 'A'),
+    //   GraphValueData(value: 20, color: Colors.red, title: 'B'),
+    //   GraphValueData(value: 30, color: Colors.green, title: 'C'),
+    //   GraphValueData(value: 40, color: Colors.blue, title: 'D')
+    // ];
+
+    final dataList = <GraphValueData>[];
+
+    bands.forEach((e) {
+      dataList.add(GraphValueData(value: e.votes.toDouble(), title: e.name));
+    });
+
+    return PieGraph(data: dataList);
   }
 }
