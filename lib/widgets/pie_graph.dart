@@ -17,9 +17,12 @@ class PieGraph extends StatefulWidget {
 
 class _PieGraphState extends State<PieGraph> {
   int _touchedIndex = 0;
+  final percentage = <String, int>{};
 
   @override
   Widget build(BuildContext context) {
+    _calculatePorcentage();
+
     const textStyle = TextStyle(
         color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20);
 
@@ -77,8 +80,7 @@ class _PieGraphState extends State<PieGraph> {
                       final index = mapEntry.key;
                       final data = mapEntry.value;
                       final isTouched = _touchedIndex == index;
-                      // final isLastElement = index == myList.length - 1;
-                      // final isLastElement = isTouched;
+
                       return PieChartSectionData(
                           value: data.value,
                           color: data.color,
@@ -87,7 +89,8 @@ class _PieGraphState extends State<PieGraph> {
                           titleStyle: isTouched
                               ? textStyle.copyWith(color: Colors.black)
                               : textStyle,
-                          title: data.title,
+                          title: '${percentage[data.title].toString()}% ',
+                          titlePositionPercentageOffset: 0.8,
                           borderSide: isTouched
                               ? const BorderSide(
                                   width: 4, color: Colors.black45)
@@ -100,6 +103,23 @@ class _PieGraphState extends State<PieGraph> {
         ],
       ),
     );
+  }
+
+  // Getting percentages
+  Map<String, int> _calculatePorcentage() {
+    final double percentageByRes;
+    final double totalRespondents = widget.data.fold<double>(0, (previous, element) {
+      return previous + element.value;
+    });
+
+    if (totalRespondents >= 1) {
+      percentageByRes = 100 / totalRespondents;
+      widget.data.forEach((e) {
+        percentage[e.title] = (percentageByRes * e.value).toInt();
+      });
+    }
+
+    return percentage;
   }
 }
 
