@@ -76,7 +76,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return Dismissible(
       key: Key(band.id),
       direction: DismissDirection.startToEnd,
-      onDismissed: (_) => socketService.emit('delete-band', {'id': band.id}),
+      onDismissed: (_) {
+        socketService.emit('delete-band', {'id': band.id});
+      },
       background: Container(
           padding: const EdgeInsets.only(left: 8.0),
           color: Colors.red,
